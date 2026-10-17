@@ -20,11 +20,14 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
       - name: Build and Cache Framework
+        env:
+          SIGNING_KEY: ""
+          SIGNING_PASSPHRASE: ""
         run: |
           git clone --depth 1 --branch v0.13.26+26.2 https://github.com/MrCrayfish/Framework.git ../Framework
           cd ../Framework
           chmod +x ./gradlew
-          ./gradlew publishToMavenLocal -x test -x signMavenJavaPublication
+          ./gradlew publishToMavenLocal -x test -x sign
           cd ../MightyMail
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v4
