@@ -19,6 +19,13 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
+      - name: Build and Cache Framework
+        run: |
+          git clone --depth 1 --branch v0.13.26+26.2 https://github.com/MrCrayfish/Framework.git ../Framework
+          cd ../Framework
+          chmod +x ./gradlew
+          ./gradlew publishToMavenLocal -x test -x signMavenJavaPublication
+          cd ../MightyMail
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v4
       - name: Read mod data from gradle.properties
