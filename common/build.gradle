@@ -16,7 +16,6 @@ neoForge {
 
 dependencies {
     compileOnly "com.mrcrayfish:framework-common:${minecraft_version}-${framework_version}"
-    compileOnly "com.mrcrayfish:refurbished_furniture-common:${minecraft_version}-${refurbished_furniture}"
 }
 
 configurations {
