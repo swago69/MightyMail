@@ -8,7 +8,7 @@ base {
     archivesName = "${mod_id}-${project.name}"
 }
 
-version = "${minecraft_version}-${mod_version}"
+version = "${mod_version}+${minecraft_version}"
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
@@ -16,8 +16,23 @@ java {
     withJavadocJar()
 }
 
+def getGprUser() {
+    return project.findProperty('gpr.user') ?: System.getenv("GPR_USER")
+}
+
+def getGprKey() {
+    return project.findProperty('gpr.key') ?: System.getenv("GPR_KEY")
+}
+
+def getPackagesRepo() {
+    return project.findProperty('packagesRepo') ?: System.getenv("PACKAGES_REPO")
+}
+
 repositories {
     mavenCentral()
+    // Resolves the locally-published 26.2 Framework fork (com.mrcrayfish:framework-*)
+    // when GitHub Packages credentials for the upstream MrCrayfish repo aren't configured.
+    mavenLocal()
     // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusively_found_in_one_repository
     exclusiveContent {
         forRepository {
@@ -26,21 +41,21 @@ repositories {
                 url = 'https://repo.spongepowered.org/repository/maven-public'
             }
         }
-        filter {
-            includeGroupAndSubgroups("org.spongepowered")
-        }
+        filter { includeGroupAndSubgroups("org.spongepowered") }
     }
-    maven {
-        name = "MrCrayfish (GitHub)"
-        url = "https://maven.pkg.github.com/MrCrayfish/Maven"
-        credentials {
-            username = findProperty("gpr.user") ?: System.getenv("GPR_USER")
-            password = findProperty("gpr.key") ?: System.getenv("GPR_KEY")
-        }
-    }
-    if (!System.getenv("CI") && System.getenv("LOCAL_MAVEN")) {
-        maven {
-            url "file://" + System.getenv("LOCAL_MAVEN")
+    if(getGprUser() && getGprKey()) {
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "MrCrayfish (GitHub)"
+                    url = getPackagesRepo()
+                    credentials {
+                        username = getGprUser()
+                        password = getGprKey()
+                    }
+                }
+            }
+            filter { includeGroupAndSubgroups("com.mrcrayfish") }
         }
     }
     maven {
@@ -52,6 +67,10 @@ repositories {
 configurations {
     library
     implementation.extendsFrom library
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:24.1.0'
 }
 
 // Declare capabilities on the outgoing configurations.
@@ -76,6 +95,7 @@ jar {
     from(rootProject.file("LICENSE")) {
         rename { "${it}_${mod_id}" }
     }
+
     manifest {
         attributes([
                 'Specification-Title'   : mod_name,
@@ -91,24 +111,30 @@ jar {
 
 processResources {
     def expandProps = [
-            "group"                        : project.group,
-            "minecraft_version"            : minecraft_version,
-            "fabric_version"               : fabric_version,
-            "fabric_loader_version"        : fabric_loader_version,
-            "neoforge_version"             : neoforge_version,
-            "neoforge_version_range"       : neoforge_version_range,
-            "neoforge_loader_version_range": neoforge_loader_version_range,
-            "framework_version"            : framework_version,
-            "refurbished_furniture_version": refurbished_furniture,
-            "mod_name"                     : mod_name,
-            "mod_version"                  : mod_version,
-            "mod_author"                   : mod_author,
-            "mod_id"                       : mod_id,
-            "mod_license"                  : mod_license,
-            "mod_desc"                     : mod_desc,
-            "mod_homepage"                 : mod_homepage,
-            "mod_source"                   : mod_source,
-            "mod_issues"                   : mod_issues
+            "group"                          : project.group, //Else we target the task's group.
+            "version"                        : project.version,
+            "java_version"                   : java_version,
+            "minecraft_version"              : minecraft_version,
+            "fabric_version"                 : fabric_version,
+            "fabric_loader_version"          : fabric_loader_version,
+            "fabric_minecraft_version_range" : fabric_minecraft_version_range,
+            "neoforge_version"               : neoforge_version,
+            "neoforge_version_range"         : neoforge_version_range,
+            "neoforge_loader_version_range"  : neoforge_loader_version_range,
+            "framework_version"              : framework_version,
+            "catalogue_version"              : catalogue_version,
+            "yigd_neoforge_version"          : yigd_neoforge_version,
+            "yigd_fabric_version"            : yigd_fabric_version,
+            "gravestone_version"             : gravestone_version,
+            "mod_name"                       : mod_name,
+            "mod_version"                    : mod_version,
+            "mod_author"                     : mod_author,
+            "mod_id"                         : mod_id,
+            "mod_license"                    : mod_license,
+            "mod_desc"                       : mod_desc,
+            "mod_homepage"                   : mod_homepage,
+            "mod_source"                     : mod_source,
+            "mod_issues"                     : mod_issues
     ]
     filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {
         expand expandProps
@@ -147,18 +173,16 @@ publishing {
         }
     }
     repositories {
-        if (System.getenv("CI")) {
-            maven {
-                name = "GitHubPackages"
-                url = "https://maven.pkg.github.com/MrCrayfish/Maven"
-                credentials {
-                    username = project.findProperty("gpr.user") ?: System.getenv("GPR_USER")
-                    password = project.findProperty("gpr.key") ?: System.getenv("GPR_KEY")
+        if (System.getenv("CI") == 'true') {
+            if (getGprUser() && getGprKey()) {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri(getPackagesRepo())
+                    credentials {
+                        username = getGprUser()
+                        password = getGprKey()
+                    }
                 }
-            }
-        } else if(System.getenv("LOCAL_MAVEN")) {
-            maven {
-                url "file://" + System.getenv("LOCAL_MAVEN")
             }
         }
     }
